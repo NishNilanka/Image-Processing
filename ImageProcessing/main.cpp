@@ -1,109 +1,62 @@
-#include <iostream>
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+#include <iostream>
+#include <stdio.h>
 
-/*
-#include "stdafx.h"
-#include <cv.h>
-#include <highgui.h>*/
+
+using namespace cv;
 using namespace std;
-
 
 int main()
 {
 
-	IplImage* img = cvLoadImage("C:/Users/Nishan Gunawardena/Desktop/233.png");
+	char c[10000];
+	cout << "Please enter file name \n(Eg: coin1.png) : ";
+	cin >> c;
 
-	//show the original image
-	cvNamedWindow("Raw");
-	cvShowImage("Raw", img);
-
-	//converting the original image into grayscale
-	IplImage* imgGrayScale = cvCreateImage(cvGetSize(img), 8, 1);
-	cvCvtColor(img, imgGrayScale, CV_BGR2GRAY);
-
-	//thresholding the grayscale image to get better results
-	cvThreshold(imgGrayScale, imgGrayScale, 128, 255, CV_THRESH_BINARY);
-
-	CvSeq* contours;  //hold the pointer to a contour in the memory block
-	CvSeq* result;   //hold sequence of points of a contour
-	CvMemStorage *storage = cvCreateMemStorage(0); //storage area for all contours
-
-	//finding all contours in the image
-	cvFindContours(imgGrayScale, storage, &contours, sizeof(CvContour), CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
-
-	//iterating through each contour
-	while (contours)
+	char s[1000] = "Image\\";
+	strcat(s, c);
+	Mat src, gray;
+	src = imread(s, 1); 
+	if (src.empty())
 	{
-		//obtain a sequence of points of contour, pointed by the variable 'contour'
-		result = cvApproxPoly(contours, sizeof(CvContour), storage, CV_POLY_APPROX_DP, cvContourPerimeter(contours)*0.02, 0);
+		std::cout << "!!! Failed to load image.Image not found !!!" << std::endl;
+		return 0;
+	}
+	resize(src, src, Size(640, 480));
+	cvtColor(src, gray, CV_BGR2GRAY);
 
-		//if there are 3  vertices  in the contour(It should be a triangle)
-		if (result->total == 3)
-		{
-			//iterating through each point
-			CvPoint *pt[3];
-			for (int i = 0; i<3; i++){
-				pt[i] = (CvPoint*)cvGetSeqElem(result, i);
-			}
+	// Reduce the noise so we avoid false circle detection
+	GaussianBlur(gray, gray, Size(9, 9), 2, 2);
 
-			//drawing lines around the triangle
-			cvLine(img, *pt[0], *pt[1], cvScalar(255, 0, 0), 4);
-			cvLine(img, *pt[1], *pt[2], cvScalar(255, 0, 0), 4);
-			cvLine(img, *pt[2], *pt[0], cvScalar(255, 0, 0), 4);
+	vector<Vec3f> circles;
 
-		}
+	// Apply the Hough Transform to find the circles
+	HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, 30, 200, 50, 0, 0);
+	float val = 0;
+	// Draw the circles detected
 
-		//if there are 4 vertices in the contour(It should be a quadrilateral)
-		else if (result->total == 4)
-		{
-			//iterating through each point
-			CvPoint *pt[4];
-			for (int i = 0; i<4; i++){
-				pt[i] = (CvPoint*)cvGetSeqElem(result, i);
-			}
-
-			//drawing lines around the quadrilateral
-			cvLine(img, *pt[0], *pt[1], cvScalar(0, 255, 0), 4);
-			cvLine(img, *pt[1], *pt[2], cvScalar(0, 255, 0), 4);
-			cvLine(img, *pt[2], *pt[3], cvScalar(0, 255, 0), 4);
-			cvLine(img, *pt[3], *pt[0], cvScalar(0, 255, 0), 4);
-		}
-
-		//if there are 7  vertices  in the contour(It should be a heptagon)
-		else if (result->total == 7)
-		{
-			//iterating through each point
-			CvPoint *pt[7];
-			for (int i = 0; i<7; i++){
-				pt[i] = (CvPoint*)cvGetSeqElem(result, i);
-			}
-
-			//drawing lines around the heptagon
-			cvLine(img, *pt[0], *pt[1], cvScalar(0, 0, 255), 4);
-			cvLine(img, *pt[1], *pt[2], cvScalar(0, 0, 255), 4);
-			cvLine(img, *pt[2], *pt[3], cvScalar(0, 0, 255), 4);
-			cvLine(img, *pt[3], *pt[4], cvScalar(0, 0, 255), 4);
-			cvLine(img, *pt[4], *pt[5], cvScalar(0, 0, 255), 4);
-			cvLine(img, *pt[5], *pt[6], cvScalar(0, 0, 255), 4);
-			cvLine(img, *pt[6], *pt[0], cvScalar(0, 0, 255), 4);
-		}
-
-		//obtain the next contour
-		contours = contours->h_next;
+	for (size_t i = 0; i < circles.size(); i++)
+	{
+		Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
+		int radius = cvRound(circles[i][2]);
+		circle(src, center, 3, Scalar(0, 255, 0), -1, 8, 0);// circle center     
+		circle(src, center, radius, Scalar(0, 0, 255), 3, 8, 0);// circle outline
+		int a = radius*radius;
+		if (2200 <= a && a <= 3550)
+			val += 5;
+		else if (3600 <= a && a <= 5000)
+			val += 2;
+		else if (1000 <= a && a <= 2200)
+			val += 1;
 	}
 
-	//show the image in which identified shapes are marked   
-	cvNamedWindow("Tracked");
-	cvShowImage("Tracked", img);
 
-	cvWaitKey(0); //wait for a key press
+	cout << "Value in Image ("<< c <<") : Rs. "<<val <<"/="<< endl;
+	// Show your results
+	namedWindow("120000507 - Assignmnt 2", CV_WINDOW_AUTOSIZE);
+	imshow("120000507 - Assignmnt 2", src);
 
-	//cleaning up
-	cvDestroyAllWindows();
-	cvReleaseMemStorage(&storage);
-	cvReleaseImage(&img);
-	cvReleaseImage(&imgGrayScale);
-
+	waitKey(0);
 	return 0;
 }
